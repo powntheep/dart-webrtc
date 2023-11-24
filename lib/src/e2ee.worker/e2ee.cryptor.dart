@@ -5,7 +5,8 @@ import 'dart:js_util' as jsutil;
 import 'dart:math';
 import 'dart:typed_data';
 
-import '../rtc_transform_stream.dart';
+import 'package:dart_webrtc/src/e2ee.worker/e2ee.worker.dart';
+
 import 'crypto.dart' as crypto;
 import 'e2ee.utils.dart';
 

@@ -1,33 +1,37 @@
 import 'dart:async';
-import 'dart:html' as html;
-import 'dart:js_util' as jsutil;
+import 'dart:js_interop';
+import 'dart:typed_data';
+import 'package:web/helpers.dart' as html;
 import 'package:webrtc_interface/webrtc_interface.dart';
 
 class RTCDataChannelWeb extends RTCDataChannel {
   RTCDataChannelWeb(this._jsDc) {
     stateChangeStream = _stateChangeController.stream;
     messageStream = _messageController.stream;
-    _jsDc.onClose.listen((_) {
+    _jsDc.onclose = (html.Event _) {
       _state = RTCDataChannelState.RTCDataChannelClosed;
       _stateChangeController.add(_state);
       onDataChannelState?.call(_state);
-    });
-    _jsDc.onOpen.listen((_) {
+    }.toJS;
+
+    _jsDc.onopen = (html.Event _) {
       _state = RTCDataChannelState.RTCDataChannelOpen;
       _stateChangeController.add(_state);
       onDataChannelState?.call(_state);
-    });
-    _jsDc.onMessage.listen((event) async {
+    }.toJS;
+
+    _jsDc.onmessage = (html.MessageEvent event) async {
       var msg = await _parse(event.data);
       _messageController.add(msg);
       onMessage?.call(msg);
-    });
-    _jsDc.addEventListener('bufferedamountlow', (_) {
+    }.toJS;
+
+    _jsDc.onbufferedamountlow = (html.Event _) {
       onBufferedAmountLow?.call(bufferedAmount ?? 0);
-    });
+    }.toJS;
   }
 
-  final html.RtcDataChannel _jsDc;
+  final html.RTCDataChannel _jsDc;
   RTCDataChannelState _state = RTCDataChannelState.RTCDataChannelConnecting;
 
   @override
@@ -44,7 +48,7 @@ class RTCDataChannelWeb extends RTCDataChannel {
 
   @override
   set bufferedAmountLowThreshold(int? bufferedAmountLowThreshold) {
-    _jsDc.bufferedAmountLowThreshold = bufferedAmountLowThreshold;
+    _jsDc.bufferedAmountLowThreshold = bufferedAmountLowThreshold ?? 0;
   }
 
   final _stateChangeController =
@@ -54,23 +58,24 @@ class RTCDataChannelWeb extends RTCDataChannel {
 
   Future<RTCDataChannelMessage> _parse(dynamic data) async {
     if (data is String) return RTCDataChannelMessage(data);
-    dynamic arrayBuffer;
     if (data is html.Blob) {
       // This should never happen actually
-      arrayBuffer = await jsutil
-          .promiseToFuture(jsutil.callMethod(data, 'arrayBuffer', []));
+      final arrayBuffer = (await data.arrayBuffer().toDart) as ByteBuffer;
+      return RTCDataChannelMessage.fromBinary(arrayBuffer.asUint8List());
+    } else if (data is ByteBuffer) {
+      var arrayBuffer = data;
+      return RTCDataChannelMessage.fromBinary(arrayBuffer.asUint8List());
     } else {
-      arrayBuffer = data;
+      throw Exception('Unknown data type: ${data.runtimeType}');
     }
-    return RTCDataChannelMessage.fromBinary(arrayBuffer.asUint8List());
   }
 
   @override
   Future<void> send(RTCDataChannelMessage message) {
     if (!message.isBinary) {
-      _jsDc.send(message.text);
+      _jsDc.send(message.text.toJS);
     } else {
-      _jsDc.sendTypedData(message.binary);
+      _jsDc.send(message.binary.toJS);
     }
     return Future.value();
   }

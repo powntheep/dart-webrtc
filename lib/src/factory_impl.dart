@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:html' as html;
-import 'package:js/js.dart';
+import 'dart:js_interop';
+import 'package:dart_webrtc/src/rtc_rtp_capailities_imp.dart';
+import 'package:web/helpers.dart' as html;
 import 'package:webrtc_interface/webrtc_interface.dart';
 
 import 'frame_cryptor_impl.dart';
@@ -9,19 +10,18 @@ import 'media_recorder_impl.dart';
 import 'media_stream_impl.dart';
 import 'navigator_impl.dart';
 import 'rtc_peerconnection_impl.dart';
-import 'rtc_rtp_capailities_imp.dart';
 
-@JS('RTCRtpSender')
-@anonymous
-class RTCRtpSenderJs {
-  external static Object getCapabilities(String kind);
-}
+// @JS('RTCRtpSender')
+// @staticInterop
+// class RTCRtpSenderJs {
+//   external static Object getCapabilities(String kind);
+// }
 
-@JS('RTCRtpReceiver')
-@anonymous
-class RTCRtpReceiverJs {
-  external static Object getCapabilities(String kind);
-}
+// @JS('RTCRtpReceiver')
+// @staticInterop
+// class RTCRtpReceiverJs {
+//   external static Object getCapabilities(String kind);
+// }
 
 class RTCFactoryWeb extends RTCFactory {
   RTCFactoryWeb._internal();
@@ -39,7 +39,8 @@ class RTCFactoryWeb extends RTCFactory {
               {'DtlsSrtpKeyAgreement': true},
             ],
           };
-    final jsRtcPc = html.RtcPeerConnection({...constr, ...configuration});
+    final jsRtcPc = html.RTCPeerConnection(
+        {...constr, ...configuration}.jsify() as html.RTCConfiguration);
     final _peerConnectionId = base64Encode(jsRtcPc.toString().codeUnits);
     return RTCPeerConnectionWeb(_peerConnectionId, jsRtcPc);
   }
@@ -69,14 +70,56 @@ class RTCFactoryWeb extends RTCFactory {
 
   @override
   Future<RTCRtpCapabilities> getRtpReceiverCapabilities(String kind) async {
-    var caps = RTCRtpReceiverJs.getCapabilities(kind);
-    return RTCRtpCapabilitiesWeb.fromJsObject(caps);
+    var caps = html.RTCRtpReceiver.getCapabilities(kind);
+    if (caps == null) {
+      throw Exception('Capabilities for $kind are not available');
+    }
+    return RTCRtpCapabilitiesWeb.fromJsObject(
+      caps,
+      // headerExtensions: caps.headerExtensions.toDart.map((e) {
+      //   final ext = e as html.RTCRtpHeaderExtensionCapability;
+      //   return RTCRtpHeaderExtensionCapability(
+      //     ext.uri,
+      //   );
+      // }).toList(),
+      // codecs: caps.codecs.toDart.map((e) {
+      //   final codec = e.dartify() as Map<String, dynamic>;
+      //   return RTCRtpCodecCapability(
+      //     clockRate: codec['clockRate'],
+      //     mimeType: codec['mimeType'],
+      //     channels: codec['channels'],
+      //     sdpFmtpLine: codec['sdpFmtpLine'],
+      //   );
+      // }).toList(),
+    );
   }
 
   @override
   Future<RTCRtpCapabilities> getRtpSenderCapabilities(String kind) async {
-    var caps = RTCRtpSenderJs.getCapabilities(kind);
+    var caps = html.RTCRtpSender.getCapabilities(kind);
+    if (caps == null) {
+      throw Exception('Capabilities for $kind are not available');
+    }
+
     return RTCRtpCapabilitiesWeb.fromJsObject(caps);
+
+    // return RTCRtpCapabilities(
+    //   headerExtensions: caps.headerExtensions.toDart.map((e) {
+    //     final ext = e as html.RTCRtpHeaderExtensionCapability;
+    //     return RTCRtpHeaderExtensionCapability(
+    //       ext.uri,
+    //     );
+    //   }).toList(),
+    //   codecs: caps.codecs.toDart.map((e) {
+    //     final codec = e.dartify() as Map<String, dynamic>;
+    //     return RTCRtpCodecCapability(
+    //       clockRate: codec['clockRate'],
+    //       mimeType: codec['mimeType'],
+    //       channels: codec['channels'],
+    //       sdpFmtpLine: codec['sdpFmtpLine'],
+    //     );
+    //   }).toList(),
+    // );
   }
 }
 

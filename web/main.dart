@@ -1,6 +1,5 @@
-import 'dart:html' as html;
-
 import 'package:dart_webrtc/dart_webrtc.dart';
+import 'package:web/helpers.dart' as html;
 
 /*
 import 'test_media_devices.dart' as media_devices_tests;
@@ -23,11 +22,11 @@ void main() {
 void loopBackTest() async {
   var local = html.document.querySelector('#local');
   var localVideo = RTCVideoElement();
-  local!.append(localVideo.htmlElement);
+  local!.appendChild(localVideo.htmlElement);
 
   var remote = html.document.querySelector('#remote');
   var remotelVideo = RTCVideoElement();
-  remote!.append(remotelVideo.htmlElement);
+  remote!.appendChild(remotelVideo.htmlElement);
 
   var acaps = await getRtpSenderCapabilities('audio');
   print('sender audio capabilities: ${acaps.toMap()}');

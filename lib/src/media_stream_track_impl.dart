@@ -1,14 +1,22 @@
 import 'dart:async';
-import 'dart:html' as html;
+import 'dart:js_interop';
 import 'dart:js_util' as js;
 import 'dart:typed_data';
+
+import 'package:web/helpers.dart' as html;
 import 'package:webrtc_interface/webrtc_interface.dart';
 
 class MediaStreamTrackWeb extends MediaStreamTrack {
   MediaStreamTrackWeb(this.jsTrack) {
-    jsTrack.onEnded.listen((event) => onEnded?.call());
-    jsTrack.onMute.listen((event) => onMute?.call());
-    jsTrack.onUnmute.listen((event) => onUnMute?.call());
+    jsTrack.onended = (html.Event event) {
+      onEnded?.call();
+    }.toJS;
+    jsTrack.onmute = (html.Event event) {
+      onMute?.call();
+    }.toJS;
+    jsTrack.onunmute = (html.Event event) {
+      onUnMute?.call();
+    }.toJS;
   }
 
   final html.MediaStreamTrack jsTrack;
@@ -23,14 +31,14 @@ class MediaStreamTrackWeb extends MediaStreamTrack {
   String? get label => jsTrack.label;
 
   @override
-  bool get enabled => jsTrack.enabled ?? false;
+  bool get enabled => jsTrack.enabled;
 
   @override
   bool? get muted => jsTrack.muted;
 
   @override
   set enabled(bool? b) {
-    jsTrack.enabled = b;
+    jsTrack.enabled = b == true;
   }
 
   @override
@@ -65,16 +73,21 @@ class MediaStreamTrackWeb extends MediaStreamTrack {
   @override
   Future<ByteBuffer> captureFrame() async {
     final imageCapture = html.ImageCapture(jsTrack);
-    final bitmap = await imageCapture.grabFrame();
-    final canvas = html.CanvasElement();
+    final bitmap = (await imageCapture.grabFrame().toDart) as html.ImageBitmap;
+    final canvas = html.createCanvasElement();
     canvas.width = bitmap.width;
     canvas.height = bitmap.height;
     final renderer =
         canvas.getContext('bitmaprenderer') as html.ImageBitmapRenderingContext;
-    js.callMethod(renderer, 'transferFromImageBitmap', [bitmap]);
-    final blod = await canvas.toBlob();
-    var array =
-        await js.promiseToFuture(js.callMethod(blod, 'arrayBuffer', []));
+    renderer.transferFromImageBitmap(bitmap);
+    final completer = Completer<html.Blob>();
+    final successCb = (html.Blob blob) {
+      completer.complete(blob);
+    }.toJS;
+    canvas.toBlob(successCb);
+    final blob = await completer.future;
+    final array = (await blob.arrayBuffer().toDart).dartify() as ByteBuffer;
+
     bitmap.close();
     return array;
   }

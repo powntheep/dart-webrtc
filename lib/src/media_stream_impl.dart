@@ -1,13 +1,12 @@
 import 'dart:async';
-import 'dart:html' as html;
+import 'dart:js_interop';
+import 'package:web/helpers.dart' as html;
 import 'package:webrtc_interface/webrtc_interface.dart';
 
 import 'media_stream_track_impl.dart';
 
 class MediaStreamWeb extends MediaStream {
-  MediaStreamWeb(this.jsStream, String ownerTag)
-      : assert(jsStream.id != null),
-        super(jsStream.id!, ownerTag);
+  MediaStreamWeb(this.jsStream, String ownerTag) : super(jsStream.id, ownerTag);
   final html.MediaStream jsStream;
 
   @override
@@ -35,18 +34,25 @@ class MediaStreamWeb extends MediaStream {
 
   @override
   List<MediaStreamTrack> getAudioTracks() {
-    var audioTracks = <MediaStreamTrack>[];
-    jsStream.getAudioTracks().forEach(
-        (dynamic jsTrack) => audioTracks.add(MediaStreamTrackWeb(jsTrack)));
+    final audioTracks = <MediaStreamTrack>[];
+    final tracks = jsStream.getAudioTracks().toDart;
+    for (var i = 0; i < tracks.length; i++) {
+      final track = tracks[i] as html.MediaStreamTrack;
+      audioTracks.add(MediaStreamTrackWeb(track));
+    }
+
     return audioTracks;
   }
 
   @override
   List<MediaStreamTrack> getVideoTracks() {
-    var audioTracks = <MediaStreamTrack>[];
-    jsStream.getVideoTracks().forEach(
-        (dynamic jsTrack) => audioTracks.add(MediaStreamTrackWeb(jsTrack)));
-    return audioTracks;
+    final videoTracks = <MediaStreamTrack>[];
+    final tracks = jsStream.getVideoTracks().toDart;
+    for (var i = 0; i < tracks.length; i++) {
+      final track = tracks[i] as html.MediaStreamTrack;
+      videoTracks.add(MediaStreamTrackWeb(track));
+    }
+    return videoTracks;
   }
 
   @override

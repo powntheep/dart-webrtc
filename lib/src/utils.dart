@@ -1,4 +1,4 @@
-import 'dart:html' as html;
+import 'package:web/helpers.dart' as html;
 
 bool get isMobile {
   final toMatch = [

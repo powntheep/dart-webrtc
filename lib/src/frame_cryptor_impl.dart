@@ -1,40 +1,40 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:html' as html;
-import 'dart:js' as js;
-import 'dart:js_util' as jsutil;
+import 'dart:js';
+import 'dart:js_interop';
+import 'dart:js_util';
 import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
+import 'package:web/helpers.dart' as html;
 import 'package:webrtc_interface/webrtc_interface.dart';
 
 import 'rtc_rtp_receiver_impl.dart';
 import 'rtc_rtp_sender_impl.dart';
-import 'rtc_transform_stream.dart';
 
-extension RtcRtpReceiverExt on html.RtcRtpReceiver {
-  static Map<int, ReadableStream> readableStreams_ = {};
-  static Map<int, WritableStream> writableStreams_ = {};
+extension RtcRtpReceiverExt on html.RTCRtpReceiver {
+  static Map<int, html.ReadableStream> readableStreams_ = {};
+  static Map<int, html.WritableStream> writableStreams_ = {};
 
-  ReadableStream? get readable {
+  html.ReadableStream? get readable {
     if (readableStreams_.containsKey(hashCode)) {
       return readableStreams_[hashCode]!;
     }
     return null;
   }
 
-  WritableStream? get writable {
+  html.WritableStream? get writable {
     if (writableStreams_.containsKey(hashCode)) {
       return writableStreams_[hashCode]!;
     }
     return null;
   }
 
-  set readableStream(ReadableStream stream) {
+  set readableStream(html.ReadableStream stream) {
     readableStreams_[hashCode] = stream;
   }
 
-  set writableStream(WritableStream stream) {
+  set writableStream(html.WritableStream stream) {
     writableStreams_[hashCode] = stream;
   }
 
@@ -44,29 +44,29 @@ extension RtcRtpReceiverExt on html.RtcRtpReceiver {
   }
 }
 
-extension RtcRtpSenderExt on html.RtcRtpSender {
-  static Map<int, ReadableStream> readableStreams_ = {};
-  static Map<int, WritableStream> writableStreams_ = {};
+extension RtcRtpSenderExt on html.RTCRtpSender {
+  static Map<int, html.ReadableStream> readableStreams_ = {};
+  static Map<int, html.WritableStream> writableStreams_ = {};
 
-  ReadableStream? get readable {
+  html.ReadableStream? get readable {
     if (readableStreams_.containsKey(hashCode)) {
       return readableStreams_[hashCode]!;
     }
     return null;
   }
 
-  WritableStream? get writable {
+  html.WritableStream? get writable {
     if (writableStreams_.containsKey(hashCode)) {
       return writableStreams_[hashCode]!;
     }
     return null;
   }
 
-  set readableStream(ReadableStream stream) {
+  set readableStream(html.ReadableStream stream) {
     readableStreams_[hashCode] = stream;
   }
 
-  set writableStream(WritableStream stream) {
+  set writableStream(html.WritableStream stream) {
     writableStreams_[hashCode] = stream;
   }
 
@@ -85,19 +85,18 @@ class FrameCryptorImpl extends FrameCryptor {
   int _keyIndex = 0;
   final String _participantId;
   final String _trackId;
-  final html.RtcRtpSender? jsSender;
-  final html.RtcRtpReceiver? jsReceiver;
+  final html.RTCRtpSender? jsSender;
+  final html.RTCRtpReceiver? jsReceiver;
   final FrameCryptorFactoryImpl _factory;
   final KeyProviderImpl keyProvider;
 
   @override
   Future<void> dispose() async {
-    jsutil.callMethod(worker, 'postMessage', [
-      jsutil.jsify({
-        'msgType': 'dispose',
-        'trackId': _trackId,
-      })
-    ]);
+    worker.postMessage({
+      'msgType': 'dispose',
+      'trackId': _trackId,
+    }.jsify());
+
     _factory.removeFrameCryptor(_trackId);
     return;
   }
@@ -115,39 +114,35 @@ class FrameCryptorImpl extends FrameCryptor {
 
   @override
   Future<bool> setEnabled(bool enabled) async {
-    jsutil.callMethod(worker, 'postMessage', [
-      jsutil.jsify({
-        'msgType': 'enable',
-        'participantId': participantId,
-        'enabled': enabled
-      })
-    ]);
+    worker.postMessage({
+      'msgType': 'enable',
+      'participantId': participantId,
+      'enabled': enabled
+    }.jsify());
+
     _enabled = enabled;
     return true;
   }
 
   @override
   Future<bool> setKeyIndex(int index) async {
-    jsutil.callMethod(worker, 'postMessage', [
-      jsutil.jsify({
-        'msgType': 'setKeyIndex',
-        'participantId': participantId,
-        'index': index,
-      })
-    ]);
+    worker.postMessage({
+      'msgType': 'setKeyIndex',
+      'participantId': participantId,
+      'index': index,
+    }.jsify());
+
     _keyIndex = index;
     return true;
   }
 
   @override
   Future<void> updateCodec(String codec) async {
-    jsutil.callMethod(worker, 'postMessage', [
-      jsutil.jsify({
-        'msgType': 'updateCodec',
-        'trackId': _trackId,
-        'codec': codec,
-      })
-    ]);
+    worker.postMessage({
+      'msgType': 'updateCodec',
+      'trackId': _trackId,
+      'codec': codec,
+    }.jsify());
   }
 }
 
@@ -162,19 +157,17 @@ class KeyProviderImpl implements KeyProvider {
   String get id => _id;
 
   Future<void> init() async {
-    jsutil.callMethod(worker, 'postMessage', [
-      jsutil.jsify({
-        'msgType': 'init',
-        'id': id,
-        'keyOptions': {
-          'sharedKey': options.sharedKey,
-          'ratchetSalt': base64Encode(options.ratchetSalt),
-          'ratchetWindowSize': options.ratchetWindowSize,
-          if (options.uncryptedMagicBytes != null)
-            'uncryptedMagicBytes': base64Encode(options.uncryptedMagicBytes!),
-        },
-      })
-    ]);
+    worker.postMessage({
+      'msgType': 'init',
+      'id': id,
+      'keyOptions': {
+        'sharedKey': options.sharedKey,
+        'ratchetSalt': base64Encode(options.ratchetSalt),
+        'ratchetWindowSize': options.ratchetWindowSize,
+        if (options.uncryptedMagicBytes != null)
+          'uncryptedMagicBytes': base64Encode(options.uncryptedMagicBytes!),
+      },
+    }.jsify());
   }
 
   @override
@@ -187,14 +180,13 @@ class KeyProviderImpl implements KeyProvider {
       {required String participantId,
       required int index,
       required Uint8List key}) async {
-    jsutil.callMethod(worker, 'postMessage', [
-      jsutil.jsify({
-        'msgType': 'setKey',
-        'participantId': participantId,
-        'keyIndex': index,
-        'key': base64Encode(key),
-      })
-    ]);
+    worker.postMessage({
+      'msgType': 'setKey',
+      'participantId': participantId,
+      'keyIndex': index,
+      'key': base64Encode(key),
+    }.jsify());
+
     _keys[participantId] ??= [];
     if (_keys[participantId]!.length <= index) {
       _keys[participantId]!.add(key);
@@ -216,13 +208,11 @@ class KeyProviderImpl implements KeyProvider {
   @override
   Future<Uint8List> ratchetKey(
       {required String participantId, required int index}) async {
-    jsutil.callMethod(worker, 'postMessage', [
-      jsutil.jsify({
-        'msgType': 'ratchetKey',
-        'participantId': participantId,
-        'keyIndex': index,
-      })
-    ]);
+    worker.postMessage({
+      'msgType': 'ratchetKey',
+      'participantId': participantId,
+      'keyIndex': index,
+    }.jsify());
 
     _ratchetKeyCompleter ??= Completer();
 
@@ -242,49 +232,44 @@ class KeyProviderImpl implements KeyProvider {
 
   @override
   Future<Uint8List> ratchetSharedKey({int index = 0}) async {
-    jsutil.callMethod(worker, 'postMessage', [
-      jsutil.jsify({
-        'msgType': 'ratchetSharedKey',
-        'keyIndex': index,
-      })
-    ]);
+    worker.postMessage({
+      'msgType': 'ratchetSharedKey',
+      'keyIndex': index,
+    }.jsify());
     return Uint8List(0);
   }
 
   @override
   Future<void> setSharedKey({required Uint8List key, int index = 0}) async {
-    jsutil.callMethod(worker, 'postMessage', [
-      jsutil.jsify({
-        'msgType': 'setSharedKey',
-        'keyIndex': index,
-        'key': base64Encode(key),
-      })
-    ]);
+    worker.postMessage({
+      'msgType': 'setSharedKey',
+      'keyIndex': index,
+      'key': base64Encode(key),
+    }.jsify());
   }
 
   @override
   Future<void> setSifTrailer({required Uint8List trailer}) async {
-    jsutil.callMethod(worker, 'postMessage', [
-      jsutil.jsify({
-        'msgType': 'setSifTrailer',
-        'sifTrailer': base64Encode(trailer),
-      })
-    ]);
+    worker.postMessage({
+      'msgType': 'setSifTrailer',
+      'sifTrailer': base64Encode(trailer),
+    }.jsify());
   }
 }
 
 class FrameCryptorFactoryImpl implements FrameCryptorFactory {
   FrameCryptorFactoryImpl._internal() {
     worker = html.Worker('e2ee.worker.dart.js');
-    worker.onMessage.listen((msg) {
+    worker.onmessage = ((html.MessageEvent msg) {
       print('master got ${msg.data}');
-      var type = msg.data['type'];
+      final data = msg.data.dartify() as Map<String, dynamic>;
+      var type = data['type'];
       if (type == 'cryptorState') {
-        var trackId = msg.data['trackId'];
-        var participantId = msg.data['participantId'];
+        var trackId = data['trackId'];
+        var participantId = data['participantId'];
         var frameCryptor = _frameCryptors.values.firstWhereOrNull(
             (element) => (element as FrameCryptorImpl).trackId == trackId);
-        var state = msg.data['state'];
+        var state = data['state'];
         var frameCryptorState = FrameCryptorState.FrameCryptorStateNew;
         switch (state) {
           case 'ok':
@@ -312,19 +297,19 @@ class FrameCryptorFactoryImpl implements FrameCryptorFactory {
         frameCryptor?.onFrameCryptorStateChanged
             ?.call(participantId, frameCryptorState);
       } else if (type == 'ratchetKey') {
-        var trackId = msg.data['trackId'];
+        var trackId = data['trackId'];
         var frameCryptor = _frameCryptors.values.firstWhereOrNull(
             (element) => (element as FrameCryptorImpl).trackId == trackId);
         if (frameCryptor != null) {
           (frameCryptor as FrameCryptorImpl)
               .keyProvider
-              .onRatchetKey(base64Decode(msg.data['key']));
+              .onRatchetKey(base64Decode(data['key']));
         }
       }
-    });
-    worker.onError.listen((err) {
+    }).toJS;
+    worker.onerror = ((html.Event err) {
       print('worker error: $err');
-    });
+    }).toJS;
   }
 
   static final FrameCryptorFactoryImpl instance =
@@ -350,9 +335,9 @@ class FrameCryptorFactoryImpl implements FrameCryptorFactory {
     var jsReceiver = (receiver as RTCRtpReceiverWeb).jsRtpReceiver;
 
     var trackId = jsReceiver.hashCode.toString();
-    var kind = jsReceiver.track!.kind!;
+    var kind = jsReceiver.track.kind;
 
-    if (js.context['RTCRtpScriptTransform'] != null) {
+    if (context['RTCRtpScriptTransform'] != null) {
       print('support RTCRtpScriptTransform');
       var options = {
         'msgType': 'decode',
@@ -360,34 +345,11 @@ class FrameCryptorFactoryImpl implements FrameCryptorFactory {
         'participantId': participantId,
         'trackId': trackId,
       };
-      jsutil.setProperty(jsReceiver, 'transform',
-          RTCRtpScriptTransform(worker, jsutil.jsify(options)));
+      jsReceiver.transform =
+          html.RTCRtpScriptTransform(worker, options.jsify()) as JSObject;
     } else {
-      var writable = jsReceiver.writable;
-      var readable = jsReceiver.readable;
-      var exist = true;
-      if (writable == null || readable == null) {
-        EncodedStreams streams =
-            jsutil.callMethod(jsReceiver, 'createEncodedStreams', []);
-        readable = streams.readable;
-        jsReceiver.readableStream = readable;
-        writable = streams.writable;
-        jsReceiver.writableStream = writable;
-        exist = false;
-      }
-
-      jsutil.callMethod(worker, 'postMessage', [
-        jsutil.jsify({
-          'msgType': 'decode',
-          'kind': kind,
-          'exist': exist,
-          'participantId': participantId,
-          'trackId': trackId,
-          'readableStream': readable,
-          'writableStream': writable
-        }),
-        jsutil.jsify([readable, writable]),
-      ]);
+      throw UnimplementedError(
+          'createEncodedStreams is not implemented');
     }
     FrameCryptor cryptor = FrameCryptorImpl(
         this, worker, participantId, trackId,
@@ -404,9 +366,9 @@ class FrameCryptorFactoryImpl implements FrameCryptorFactory {
       required KeyProvider keyProvider}) {
     var jsSender = (sender as RTCRtpSenderWeb).jsRtpSender;
     var trackId = jsSender.hashCode.toString();
-    var kind = jsSender.track!.kind!;
+    var kind = jsSender.track!.kind;
 
-    if (js.context['RTCRtpScriptTransform'] != null) {
+    if (context['RTCRtpScriptTransform'] != null) {
       print('support RTCRtpScriptTransform');
       var options = {
         'msgType': 'encode',
@@ -415,34 +377,11 @@ class FrameCryptorFactoryImpl implements FrameCryptorFactory {
         'trackId': trackId,
         'options': (keyProvider as KeyProviderImpl).options.toJson(),
       };
-      jsutil.setProperty(jsSender, 'transform',
-          RTCRtpScriptTransform(worker, jsutil.jsify(options)));
+      jsSender.transform =
+          html.RTCRtpScriptTransform(worker, options.jsify()) as JSObject;
     } else {
-      var writable = jsSender.writable;
-      var readable = jsSender.readable;
-      var exist = true;
-      if (writable == null || readable == null) {
-        EncodedStreams streams =
-            jsutil.callMethod(jsSender, 'createEncodedStreams', []);
-        readable = streams.readable;
-        jsSender.readableStream = readable;
-        writable = streams.writable;
-        jsSender.writableStream = writable;
-        exist = false;
-      }
-      jsutil.callMethod(worker, 'postMessage', [
-        jsutil.jsify({
-          'msgType': 'encode',
-          'kind': kind,
-          'exist': exist,
-          'participantId': participantId,
-          'trackId': trackId,
-          'options': (keyProvider as KeyProviderImpl).options.toJson(),
-          'readableStream': readable,
-          'writableStream': writable
-        }),
-        jsutil.jsify([readable, writable]),
-      ]);
+      throw UnimplementedError(
+          'createEncodedStreams is not implemented');
     }
     FrameCryptor cryptor = FrameCryptorImpl(
         this, worker, participantId, trackId,

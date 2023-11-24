@@ -1,10 +1,12 @@
-import 'dart:html' as html;
+import 'dart:js_interop';
+
+import 'package:web/helpers.dart' as html;
 
 import '../dart_webrtc.dart';
 
 class RTCVideoElement {
   RTCVideoElement() {
-    _html = html.VideoElement()
+    _html = (html.createElementTag('video') as html.VideoElement)
       ..autoplay = true
       ..muted = false
       ..controls = false
@@ -26,7 +28,7 @@ class RTCVideoElement {
   set srcObject(MediaStream? stream) {
     _stream = stream;
     if (stream != null) {
-      _html.srcObject = (stream as MediaStreamWeb).jsStream;
+      _html.srcObject = (stream as MediaStreamWeb).jsStream as JSObject;
     } else {
       _html.srcObject = null;
     }
@@ -61,5 +63,5 @@ class RTCVideoElement {
 
   void removeAttribute(String name) => _html.removeAttribute(name);
 
-  Future<void> setSinkId(String sinkId) => _html.setSinkId(sinkId);
+  Future<void> setSinkId(String sinkId) => _html.setSinkId(sinkId).toDart;
 }

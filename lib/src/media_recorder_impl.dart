@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:html' as html;
-import 'dart:js' as js;
+import 'dart:js_interop';
+import 'package:web/helpers.dart' as html;
 import 'package:webrtc_interface/webrtc_interface.dart';
 
 import 'media_stream_impl.dart';
@@ -28,30 +28,36 @@ class MediaRecorderWeb extends MediaRecorder {
     int timeSlice = 1000,
   }) {
     var _native = stream as MediaStreamWeb;
-    _recorder = html.MediaRecorder(_native.jsStream, {'mimeType': mimeType});
+    _recorder = html.MediaRecorder(_native.jsStream,
+        {'mimeType': mimeType}.jsify() as html.MediaRecorderOptions);
     if (onDataChunk == null) {
       var _chunks = <html.Blob>[];
       _completer = Completer<String>();
-      _recorder.addEventListener('dataavailable', (html.Event event) {
-        final html.Blob blob = js.JsObject.fromBrowserObject(event)['data'];
-        if (blob.size > 0) {
-          _chunks.add(blob);
-        }
-        if (_recorder.state == 'inactive') {
-          final blob = html.Blob(_chunks, mimeType);
-          _completer.complete(html.Url.createObjectUrlFromBlob(blob));
-        }
-      });
-      _recorder.onError.listen((error) {
+      _recorder.addEventListener(
+          'dataavailable',
+          (html.Event event) {
+            final blob = event.data as html.Blob;
+            if (blob.size > 0) {
+              _chunks.add(blob);
+            }
+            if (_recorder.state == 'inactive') {
+              final blob = html.Blob(_chunks.jsify() as JSArray,
+                  html.BlobPropertyBag(type: mimeType));
+              _completer.complete(html.URL.createObjectURL(blob as JSObject));
+            }
+          }.toJS);
+      _recorder.onerror = ((html.Event error) {
         _completer.completeError(error);
-      });
+      }).toJS;
     } else {
-      _recorder.addEventListener('dataavailable', (html.Event event) {
-        onDataChunk(
-          js.JsObject.fromBrowserObject(event)['data'],
-          _recorder.state == 'inactive',
-        );
-      });
+      _recorder.addEventListener(
+          'dataavailable',
+          (html.Event event) {
+            onDataChunk(
+              event.data,
+              _recorder.state == 'inactive',
+            );
+          }.toJS);
     }
     _recorder.start(timeSlice);
   }
@@ -61,4 +67,8 @@ class MediaRecorderWeb extends MediaRecorder {
     _recorder.stop();
     return _completer.future;
   }
+}
+
+extension EventDataExtension on html.Event {
+  external JSAny get data;
 }

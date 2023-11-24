@@ -1,8 +1,8 @@
-import 'dart:html' as html;
+import 'dart:js_util';
 
 import 'package:dart_webrtc/dart_webrtc.dart';
-import 'package:js/js.dart';
 import 'package:test/test.dart';
+import 'package:web/helpers.dart' as html;
 
 import 'signaling.dart';
 
@@ -23,13 +23,13 @@ void main() {
 
   var localVideo = RTCVideoElement();
 
-  local?.append(localVideo.htmlElement);
+  local?.appendChild(localVideo.htmlElement);
 
   var remote = html.document.querySelector('#remote');
 
   var remoteVideo = RTCVideoElement();
 
-  remote?.append(remoteVideo.htmlElement);
+  remote?.appendChild(remoteVideo.htmlElement);
 
   signaling.onLocalStream = allowInterop((MediaStream stream) {
     localVideo.srcObject = stream;
